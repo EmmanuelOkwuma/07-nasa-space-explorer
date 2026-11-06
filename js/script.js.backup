@@ -1,0 +1,124 @@
+// NASA Space Explorer — Project 7
+
+const startInput = document.getElementById("startDate");
+const endInput = document.getElementById("endDate");
+const gallery = document.getElementById("gallery");
+const searchButton = document.querySelector(".filters button");
+
+// Keep the starter project's date setup.
+setupDateInputs(startInput, endInput);
+
+const NASA_API_URL = "https://api.nasa.gov/planetary/apod";
+const API_KEY = "DEMO_KEY";
+
+// Fetch NASA's Astronomy Picture of the Day entries.
+async function getSpaceImages() {
+  const startDate = startInput.value;
+  const endDate = endInput.value;
+
+  // Validate the selected dates.
+  if (!startDate || !endDate) {
+    gallery.innerHTML = `
+      <p class="placeholder">Please select both dates.</p>
+    `;
+    return;
+  }
+
+  const start = new Date(`${startDate}T00:00:00Z`);
+  const end = new Date(`${endDate}T00:00:00Z`);
+
+  const numberOfDays =
+    Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1;
+
+  if (numberOfDays !== 9) {
+    gallery.innerHTML = `
+      <p class="placeholder">
+        Please select exactly 9 consecutive days.
+        Your current selection contains ${numberOfDays} days.
+      </p>
+    `;
+    return;
+  }
+
+  gallery.innerHTML = `
+    <p class="placeholder">Loading space photos...</p>
+  `;
+
+  searchButton.disabled = true;
+
+  try {
+    const url =
+      `${NASA_API_URL}?api_key=${API_KEY}` +
+      `&start_date=${startDate}&end_date=${endDate}`;
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(`NASA API request failed: ${response.status}`);
+    }
+
+    const data = await response.json();
+
+    if (!Array.isArray(data)) {
+      throw new Error("NASA returned an unexpected response.");
+    }
+
+    displayGallery(data);
+  } catch (error) {
+    console.error("NASA API Error:", error);
+
+    gallery.innerHTML = `
+      <p class="placeholder">
+        Unable to load NASA's space images.
+        Please try again later.
+      </p>
+    `;
+  } finally {
+    searchButton.disabled = false;
+  }
+}
+
+// Generate gallery cards using NASA API data.
+function displayGallery(data) {
+  gallery.innerHTML = "";
+
+  data.sort((a, b) => a.date.localeCompare(b.date));
+
+  data.forEach((item) => {
+    const card = document.createElement("article");
+    card.className = "gallery-item";
+
+    if (item.media_type === "image") {
+      const image = document.createElement("img");
+
+      image.src = item.url;
+      image.alt = item.title;
+      image.loading = "lazy";
+
+      card.appendChild(image);
+    } else if (item.media_type === "video") {
+      const videoLink = document.createElement("a");
+
+      videoLink.href = item.url;
+      videoLink.target = "_blank";
+      videoLink.rel = "noopener noreferrer";
+      videoLink.textContent = "Watch NASA Space Video";
+
+      card.appendChild(videoLink);
+    }
+
+    const title = document.createElement("h3");
+    title.textContent = item.title;
+
+    const date = document.createElement("p");
+    date.textContent = item.date;
+
+    card.appendChild(title);
+    card.appendChild(date);
+
+    gallery.appendChild(card);
+  });
+}
+
+// Connect the button to the API request.
+searchButton.addEventListener("click", getSpaceImages);
